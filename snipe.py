@@ -2,6 +2,15 @@ import discord
 import json
 from datetime import datetime
 
+def load_emojis():
+    """Load emojis from emojis.json"""
+    try:
+        with open('emojis.json', 'r') as f:
+            data = json.load(f)
+            return data['emojis']
+    except FileNotFoundError:
+        return {}
+
 def load_deleted_messages():
     """Load deleted messages from deleted.json"""
     try:
@@ -44,6 +53,59 @@ async def track_message_delete(message):
     
     save_deleted_messages(deleted_data)
 
+async def clearsnipe_command(ctx):
+    """Clear all deleted messages for the current channel"""
+    emojis = load_emojis()
+    
+    # Check if user has manage_messages permission
+    if not ctx.author.guild_permissions.manage_messages:
+        warn_emoji_id = emojis.get("warn")
+        warn_emoji = f"<:custom:{warn_emoji_id}>" if warn_emoji_id else "⚠️"
+        embed = discord.Embed(
+            description=f"{warn_emoji} {ctx.author.mention}: You're missing permission: `manage_messages`",
+            color=discord.Color.yellow()
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    try:
+        deleted_data = load_deleted_messages()
+        channel_id = str(ctx.channel.id)
+        
+        # Check if there are any messages to clear
+        if channel_id not in deleted_data or not deleted_data[channel_id]:
+            warn_emoji_id = emojis.get("warn")
+            warn_emoji = f"<:custom:{warn_emoji_id}>" if warn_emoji_id else "⚠️"
+            embed = discord.Embed(
+                description=f"{warn_emoji} {ctx.author.mention}: No deleted messages to clear",
+                color=discord.Color.yellow()
+            )
+            await ctx.send(embed=embed)
+            return
+        
+        # Clear messages for this channel
+        del deleted_data[channel_id]
+        save_deleted_messages(deleted_data)
+        
+        # Send success embed
+        approve_emoji_id = emojis.get("approve")
+        approve_emoji = f"<:custom:{approve_emoji_id}>" if approve_emoji_id else "✅"
+        embed = discord.Embed(
+            description=f"{approve_emoji} {ctx.author.mention}: All deleted messages cleared",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        print(f"Error in clearsnipe command: {e}")
+        warn_emoji_id = emojis.get("warn")
+        warn_emoji = f"<:custom:{warn_emoji_id}>" if warn_emoji_id else "⚠️"
+        embed = discord.Embed(
+            description=f"{warn_emoji} {ctx.author.mention}: An error occurred",
+            color=discord.Color.yellow()
+        )
+        await ctx.send(embed=embed)
+
 async def snipe_command(ctx, page=1):
     """Show deleted message from the current channel"""
     try:
@@ -54,7 +116,7 @@ async def snipe_command(ctx, page=1):
         if channel_id not in deleted_data or not deleted_data[channel_id]:
             embed = discord.Embed(
                 description=f"🔍 {ctx.author.mention}: No deleted messages found!",
-                color=discord.Color.yellow()
+                color=discord.Color.from_rgb(128, 128, 128)
             )
             await ctx.send(embed=embed)
             return
@@ -66,7 +128,7 @@ async def snipe_command(ctx, page=1):
         if page < 1 or page > total_pages:
             embed = discord.Embed(
                 description=f"🔍 {ctx.author.mention}: Invalid page number. Valid pages: 1-{total_pages}",
-                color=discord.Color.yellow()
+                color=discord.Color.from_rgb(128, 128, 128)
             )
             await ctx.send(embed=embed)
             return
@@ -83,10 +145,13 @@ async def snipe_command(ctx, page=1):
         # Format time display
         if total_seconds < 60:
             time_display = f"{total_seconds} seconds"
-        else:
+        elif total_seconds < 3600:
             minutes = total_seconds // 60
             seconds = total_seconds % 60
             time_display = f"{minutes}m {seconds}s"
+        else:
+            hours = total_seconds // 3600
+            time_display = f"{hours}h"
         
         # Create embed with deleted message and avatar
         embed = discord.Embed(
@@ -111,6 +176,6 @@ async def snipe_command(ctx, page=1):
         print(f"Error in snipe command: {e}")
         embed = discord.Embed(
             description="🔍 An error occurred while retrieving the deleted message.",
-            color=discord.Color.yellow()
+            color=discord.Color.from_rgb(128, 128, 128)
         )
         await ctx.send(embed=embed)
