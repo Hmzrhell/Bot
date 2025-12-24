@@ -82,10 +82,13 @@ async def handle_message(message):
                 # Format time display
                 if total_seconds < 60:
                     time_display = f"{total_seconds} seconds ago"
-                else:
+                elif total_seconds < 3600:
                     minutes = total_seconds // 60
                     seconds = total_seconds % 60
                     time_display = f"{minutes} minutes and {seconds} seconds ago"
+                else:
+                    hours = total_seconds // 3600
+                    time_display = f"{hours} hour{'s' if hours > 1 else ''} ago"
                 
                 # Send AFK notification embed
                 embed = discord.Embed(
@@ -110,10 +113,13 @@ async def handle_message(message):
             # Format time display
             if total_seconds < 60:
                 time_display = f"{total_seconds} seconds ago"
-            else:
+            elif total_seconds < 3600:
                 minutes = total_seconds // 60
                 seconds = total_seconds % 60
                 time_display = f"{minutes} minutes and {seconds} seconds ago"
+            else:
+                hours = total_seconds // 3600
+                time_display = f"{hours} hour{'s' if hours > 1 else ''} ago"
             
             # Send AFK notification embed
             embed = discord.Embed(
@@ -131,14 +137,23 @@ async def handle_message(message):
         now = datetime.now()
         time_diff = now - afk_datetime
         
-        # Get minutes and seconds
+        # Get time display
         total_seconds = int(time_diff.total_seconds())
-        minutes = total_seconds // 60
-        seconds = total_seconds % 60
+        
+        # Format time display
+        if total_seconds < 60:
+            time_display = f"{total_seconds} seconds"
+        elif total_seconds < 3600:
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            time_display = f"{minutes} minutes and {seconds} seconds"
+        else:
+            hours = total_seconds // 3600
+            time_display = f"{hours} hour{'s' if hours > 1 else ''}"
         
         # Send welcome back embed
         embed = discord.Embed(
-            description=f"👋 {message.author.mention}: Welcome back, you were away for **{minutes} minutes and {seconds} seconds**",
+            description=f"👋 {message.author.mention}: Welcome back, you were away for **{time_display}**",
             color=discord.Color.from_rgb(79, 84, 92)
         )
         await message.channel.send(embed=embed)
