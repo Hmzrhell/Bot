@@ -1,10 +1,11 @@
 import discord
 from discord.ext import commands
+from typing import Optional
 import json
 import os
 from lock import lock_channel, unlock_channel
 from afk import afk_command, handle_message
-from snipe import snipe_command, track_message_delete
+from snipe import snipe_command, clearsnipe_command, track_message_delete
 
 # Load emojis from JSON
 with open('emojis.json', 'r') as f:
@@ -37,15 +38,15 @@ async def on_message(message):
 async def on_message_delete(message):
     await track_message_delete(message)
 
-@bot.command(name='lock', aliases=['l'], description='Lock the current channel')
-async def lock_cmd(ctx):
-    """Lock the current channel - prevents members from sending messages"""
-    await lock_channel(ctx)
+@bot.command(name='lock', aliases=['l'], description='Lock a channel')
+async def lock_cmd(ctx, channel: Optional[discord.TextChannel] = None):
+    """Lock a channel - prevents members from sending messages"""
+    await lock_channel(ctx, channel)
 
-@bot.command(name='unlock', aliases=['ul'], description='Unlock the current channel')
-async def unlock_cmd(ctx):
-    """Unlock the current channel - allows members to send messages"""
-    await unlock_channel(ctx)
+@bot.command(name='unlock', aliases=['ul'], description='Unlock a channel')
+async def unlock_cmd(ctx, channel: Optional[discord.TextChannel] = None):
+    """Unlock a channel - allows members to send messages"""
+    await unlock_channel(ctx, channel)
 
 @bot.command(name='afk', description='Mark yourself as AFK')
 async def afk_cmd(ctx, *, status=None):
@@ -56,6 +57,11 @@ async def afk_cmd(ctx, *, status=None):
 async def snipe_cmd(ctx, page: int = 1):
     """View deleted messages in the current channel"""
     await snipe_command(ctx, page)
+
+@bot.command(name='clearsnipe', aliases=['cs'], description='Clear all deleted messages')
+async def clearsnipe_cmd(ctx):
+    """Clear all deleted messages in the current channel"""
+    await clearsnipe_command(ctx)
 
 def main():
     # Get bot token from environment variable
