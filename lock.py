@@ -38,15 +38,15 @@ async def send_error_embed(ctx, emoji_name, title):
     embed.set_footer(text="")
     await ctx.send(embed=embed)
 
-async def lock_channel(ctx):
-    """Lock the current channel - prevents members from sending messages"""
+async def lock_channel(ctx, target_channel=None):
+    """Lock a channel - prevents members from sending messages"""
     # Check if user has manage_channels permission
     if not ctx.author.guild_permissions.manage_channels:
         await send_error_embed(ctx, "warn", "You're **missing** permission: `manage_channels`")
         return
     
     try:
-        channel = ctx.channel
+        channel = target_channel if target_channel else ctx.channel
         guild = channel.guild
         
         # Check if bot has manage_channels permission
@@ -54,27 +54,42 @@ async def lock_channel(ctx):
             await send_error_embed(ctx, "warn", "I'm **missing** permission: `manage_channels`")
             return
         
+        # Check if channel is already locked
+        locks = load_locks()
+        is_already_locked = str(channel.id) in locks["locked_channels"]
+        
         # Get @everyone role
         everyone_role = guild.default_role
         
-        # Lock the channel by denying send_messages permission to @everyone
-        await channel.set_permissions(
-            everyone_role,
-            send_messages=False,
-            reason=f"Channel locked by {ctx.author}"
-        )
-        
-        # Save lock state to lock.json
-        locks = load_locks()
-        locks["locked_channels"][str(channel.id)] = {
-            "channel_name": channel.name,
-            "locked_by": str(ctx.author),
-            "guild_id": guild.id
-        }
-        save_locks(locks)
-        
-        # React with lock emoji only
-        await ctx.message.add_reaction('🔒')
+        # Only lock if not already locked
+        if not is_already_locked:
+            await channel.set_permissions(
+                everyone_role,
+                send_messages=False,
+                reason=f"Channel locked by {ctx.author}"
+            )
+            
+            # Save lock state to lock.json
+            locks["locked_channels"][str(channel.id)] = {
+                "channel_name": channel.name,
+                "locked_by": str(ctx.author),
+                "guild_id": guild.id
+            }
+            save_locks(locks)
+            
+            # React with lock emoji only (first lock)
+            await ctx.message.add_reaction('🔒')
+        else:
+            # Channel already locked - send embed
+            emojis = load_emojis()
+            deny_emoji_id = emojis.get("deny")
+            deny_emoji = f"<:custom:{deny_emoji_id}>" if deny_emoji_id else "❌"
+            
+            embed = discord.Embed(
+                description=f"{deny_emoji} {ctx.author.mention}: {channel.mention} is already locked",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
         
     except discord.Forbidden:
         await send_error_embed(ctx, "warn", "I'm **missing** permission: `manage_channels`")
@@ -82,15 +97,15 @@ async def lock_channel(ctx):
         print(f"Error locking channel: {e}")
         await send_error_embed(ctx, "warn", f"An error occurred: {str(e)}")
 
-async def unlock_channel(ctx):
-    """Unlock the current channel - allows members to send messages"""
+async def unlock_channel(ctx, target_channel=None):
+    """Unlock a channel - allows members to send messages"""
     # Check if user has manage_channels permission
     if not ctx.author.guild_permissions.manage_channels:
         await send_error_embed(ctx, "warn", "You're **missing** permission: `manage_channels`")
         return
     
     try:
-        channel = ctx.channel
+        channel = target_channel if target_channel else ctx.channel
         guild = channel.guild
         
         # Check if bot has manage_channels permission
@@ -98,24 +113,38 @@ async def unlock_channel(ctx):
             await send_error_embed(ctx, "warn", "I'm **missing** permission: `manage_channels`")
             return
         
+        # Check if channel is actually locked
+        locks = load_locks()
+        is_locked = str(channel.id) in locks["locked_channels"]
+        
         # Get @everyone role
         everyone_role = guild.default_role
         
-        # Unlock the channel by allowing send_messages permission to @everyone
-        await channel.set_permissions(
-            everyone_role,
-            send_messages=True,
-            reason=f"Channel unlocked by {ctx.author}"
-        )
-        
-        # Remove lock state from lock.json
-        locks = load_locks()
-        if str(channel.id) in locks["locked_channels"]:
+        # Only unlock if currently locked
+        if is_locked:
+            await channel.set_permissions(
+                everyone_role,
+                send_messages=True,
+                reason=f"Channel unlocked by {ctx.author}"
+            )
+            
+            # Remove lock state from lock.json
             del locks["locked_channels"][str(channel.id)]
-        save_locks(locks)
-        
-        # React with unlock emoji only
-        await ctx.message.add_reaction('🔓')
+            save_locks(locks)
+            
+            # React with unlock emoji only (first unlock)
+            await ctx.message.add_reaction('🔓')
+        else:
+            # Channel already unlocked - send embed
+            emojis = load_emojis()
+            deny_emoji_id = emojis.get("deny")
+            deny_emoji = f"<:custom:{deny_emoji_id}>" if deny_emoji_id else "❌"
+            
+            embed = discord.Embed(
+                description=f"{deny_emoji} {ctx.author.mention}: {channel.mention} is already unlocked",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
         
     except discord.Forbidden:
         await send_error_embed(ctx, "warn", "I'm **missing** permission: `manage_channels`")
