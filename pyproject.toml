@@ -1,0 +1,7 @@
+[project]
+name = "discord-lock-bot"
+version = "0.1.0"
+description = "Discord bot better on commands"
+authors = ["Discord: @encomiastic | Github: @Hmzrhell | Telegram: @c7ores"]
+requires-python = ">=3.11"
+dependencies = ["discord.py>=2.0.0"]
